@@ -1,13 +1,26 @@
 import type { Request, Response } from "express";
 import type { LoginInput } from "../schemas/auth.schemas.js";
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
-import  prisma  from "../lib/prisma.js";
+import prisma from "../lib/prisma.js";
 import type { RegisterInput } from "../schemas/auth.schemas.js";
+import { createToken } from "../utils/createToken.js";
+import type { payloadType } from "../types/types.js";
 
-const register = async (req: Request, res: Response) => {
+const register = async (req: Request, res: Response): Promise<Response> => {
   try {
     const { username, email, password } = req.body as RegisterInput;
+
+    if (!email) {
+      return res.status(409).json({ email: ["Email is required"] });
+    }
+
+    if (!username) {
+      return res.status(409).json({ username: ["Username is required"] });
+    }
+
+    if (!password) {
+      return res.status(409).json({ password: ["Password is required"] });
+    }
 
     //Verificar si el email ya existe
     const emailExists = await prisma.user.findUnique({
@@ -56,18 +69,26 @@ const register = async (req: Request, res: Response) => {
 
     //Generar JWT
 
-    const token = jwt.sign(
-      { userId: user.id },
-      process.env.JWT_SECRET as string,
-      { expiresIn: "7d" },
+    const { accessToken } = await createToken(
+      user.id as unknown as payloadType,
     );
+    const { refreshToken } = await createToken(
+      user.id as unknown as payloadType,
+    );
+
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "none",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
 
     //Responder con el usuario y el token
 
     return res.status(201).json({
-      message: "Usuario creado correctamente",
+      message: "User created successfully",
       user,
-      token,
+      accessToken,
     });
   } catch (error) {
     console.error("[REGISTER ERROR]", error);
@@ -76,11 +97,63 @@ const register = async (req: Request, res: Response) => {
     });
   }
 };
+// ------------------------------------------------------------- //
+// ------------------------------------------------------------- //
+// ------------------------------------------------------------- //
+const login = async (req: Request, res: Response): Promise<Response> => {
+  try {
+    const { email, password } = req.body as LoginInput;
 
-const login = async (req: Request, res: Response) => {
-  const { email, password } = req.body as LoginInput;
+    const userFound = await prisma.user.findUnique({
+      where: {
+        email,
+      },
+    });
+    if (!userFound?.email) {
+      return res.status(409).json({ email: ["Incorrect email"] });
+    }
 
-  console.log(email, password);
+    const passawordMatch = await bcrypt.compare(password, userFound?.password);
+
+    if (!passawordMatch) {
+      return res.status(409).json({ password: ["Incorrect password"] });
+    }
+
+    const { accessToken } = await createToken(
+      userFound.id as unknown as payloadType,
+    );
+
+    const { refreshToken } = await createToken(
+      userFound.id as unknown as payloadType,
+    );
+
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "none",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    const userWithoutPassword = {
+      username: userFound.username,
+      email: userFound.email,
+      avatar: userFound.avatarUrl,
+      id: userFound.id,
+      bio: userFound.bio,
+      createdAt: userFound.createdAt,
+    };
+
+    return res.status(200).json({
+      message: "User logged in",
+      userWithoutPassword,
+      accessToken,
+    });
+  } catch (error) {
+    console.error("[LOGIN ERROR]", error);
+    return res.status(500).json({
+      message: "Error interno del servidor",
+    });
+  }
 };
 
 export const AuthControllers = {
