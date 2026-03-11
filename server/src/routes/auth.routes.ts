@@ -5,4 +5,5 @@ import { AuthControllers } from '../controllers/auth.controllers.js'
 export const router = Router()
 
 
-router.get('/login',AuthControllers.register)
+router.post('/register',AuthControllers.register)
+router.post('/login',AuthControllers.login)

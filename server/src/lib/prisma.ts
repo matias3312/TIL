@@ -1,20 +1,7 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from '../generated/client.js'
+import { PrismaPg } from '@prisma/adapter-pg'
 
-declare global {
-  // we add this so TS knows about the variable and
-  // so we don’t recreate a client on every hot‑reload
-  var prisma: PrismaClient | undefined;
-}
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL })
+const prisma = new PrismaClient({ adapter })
 
-export const prisma =
-  global.prisma ??
-  new PrismaClient({
-    log:
-      process.env.NODE_ENV === "development"
-        ? ["query", "error", "warn"]
-        : ["error"],
-  });
-
-if (process.env.NODE_ENV !== "production") {
-  global.prisma = prisma;
-}
+export default prisma

@@ -2,7 +2,7 @@ import type { Request, Response } from "express";
 import type { LoginInput } from "../schemas/auth.schemas.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { prisma } from "../lib/prisma.js";
+import  prisma  from "../lib/prisma.js";
 import type { RegisterInput } from "../schemas/auth.schemas.js";
 
 const register = async (req: Request, res: Response) => {
@@ -77,6 +77,13 @@ const register = async (req: Request, res: Response) => {
   }
 };
 
+const login = async (req: Request, res: Response) => {
+  const { email, password } = req.body as LoginInput;
+
+  console.log(email, password);
+};
+
 export const AuthControllers = {
   register,
+  login,
 };
