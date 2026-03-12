@@ -1,9 +1,15 @@
-import {Router} from 'express'
-import { AuthControllers } from '../controllers/auth.controllers.js'
+import { Router } from "express";
+import { AuthControllers } from "../controllers/auth.controllers.js";
+import { validateSchema } from "../middlewares/validateSchema.js";
+import { loginSchema, registerSchema } from "../schemas/auth.schemas.js";
 
+export const router = Router();
 
-export const router = Router()
-
-
-router.post('/register',AuthControllers.register)
-router.post('/login',AuthControllers.login)
+router.post(
+  "/register",
+  validateSchema(registerSchema),
+  AuthControllers.register,
+);
+router.post("/login", validateSchema(loginSchema), AuthControllers.login);
+router.post("/logout",  AuthControllers.logout);
+router.post("/refresh-token",  AuthControllers.refreshToken);

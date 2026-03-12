@@ -4,23 +4,16 @@ import bcrypt from "bcryptjs";
 import prisma from "../lib/prisma.js";
 import type { RegisterInput } from "../schemas/auth.schemas.js";
 import { createToken } from "../utils/createToken.js";
-import type { payloadType } from "../types/types.js";
+import jwt from "jsonwebtoken";
+import type { JwtDecoded } from "../types/types.js";
+
+// ------------------------------------------------------------- //
+// ------------------------------------------------------------- //
+// ------------------------------------------------------------- //
 
 const register = async (req: Request, res: Response): Promise<Response> => {
   try {
     const { username, email, password } = req.body as RegisterInput;
-
-    if (!email) {
-      return res.status(409).json({ email: ["Email is required"] });
-    }
-
-    if (!username) {
-      return res.status(409).json({ username: ["Username is required"] });
-    }
-
-    if (!password) {
-      return res.status(409).json({ password: ["Password is required"] });
-    }
 
     //Verificar si el email ya existe
     const emailExists = await prisma.user.findUnique({
@@ -69,12 +62,9 @@ const register = async (req: Request, res: Response): Promise<Response> => {
 
     //Generar JWT
 
-    const { accessToken } = await createToken(
-      user.id as unknown as payloadType,
-    );
-    const { refreshToken } = await createToken(
-      user.id as unknown as payloadType,
-    );
+    const { accessToken, refreshToken } = await createToken({
+      userId: user.id,
+    });
 
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
@@ -109,23 +99,19 @@ const login = async (req: Request, res: Response): Promise<Response> => {
         email,
       },
     });
-    if (!userFound?.email) {
+    if (!userFound) {
       return res.status(409).json({ email: ["Incorrect email"] });
     }
 
-    const passawordMatch = await bcrypt.compare(password, userFound?.password);
+    const passawordMatch = await bcrypt.compare(password, userFound.password);
 
     if (!passawordMatch) {
       return res.status(409).json({ password: ["Incorrect password"] });
     }
 
-    const { accessToken } = await createToken(
-      userFound.id as unknown as payloadType,
-    );
-
-    const { refreshToken } = await createToken(
-      userFound.id as unknown as payloadType,
-    );
+    const { accessToken, refreshToken } = await createToken({
+      userId: userFound.id,
+    });
 
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
@@ -156,7 +142,57 @@ const login = async (req: Request, res: Response): Promise<Response> => {
   }
 };
 
+// ------------------------------------------------------------- //
+// ------------------------------------------------------------- //
+// ------------------------------------------------------------- //
+
+const logout = async (_: Request, res: Response): Promise<Response> => {
+  try {
+    res.clearCookie("refreshToken", {
+      httpOnly: true,
+      secure: true,
+      maxAge: 0,
+      sameSite: "none",
+    });
+
+    return res.status(200).json({ message: "User logged out successfully" });
+  } catch (error) {
+    console.log("[LOGOUT ERROR]");
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+// ------------------------------------------------------------- //
+// ------------------------------------------------------------- //
+// ------------------------------------------------------------- //
+
+const refreshToken = async (req: Request, res: Response): Promise<Response> => {
+  try {
+    const token = req.cookies.refreshToken;
+
+    if (!token) {
+      return res.status(401).json({ message: "No refresh token" });
+    }
+
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_REFRESH_SECRET!,
+    ) as JwtDecoded;
+
+    const { accessToken } = await createToken({
+      userId: decoded.payload.userId,
+    });
+    return res.status(200).json({ accessToken });
+  } catch (error) {
+    return res
+      .status(401)
+      .json({ message: "Invalid or expired refresh token" });
+  }
+};
+
 export const AuthControllers = {
   register,
   login,
+  logout,
+  refreshToken,
 };
