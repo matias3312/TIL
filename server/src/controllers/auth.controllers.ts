@@ -200,7 +200,7 @@ const refreshToken = async (req: Request, res: Response): Promise<Response> => {
 const me = async (req: Request, res: Response): Promise<Response> => {
   try {
     const user = await prisma.user.findUnique({
-      where: { id: req.userId },
+      where: { id: req.userId! },
       select: {
         id: true,
         username: true,

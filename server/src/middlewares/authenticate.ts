@@ -20,7 +20,7 @@ export const authenticate = (
     const decoded = jwt.verify(
       token,
       process.env.JWT_ACCESS_SECRET!,
-    ) as JwtDecoded;
+    ) as unknown as JwtDecoded;
 
     req.userId = decoded.payload.userId;
     next();

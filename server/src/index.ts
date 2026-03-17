@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import { router as AuthRoutes } from "./routes/auth.routes.js";
+import { router as PostsRoutes } from "./routes/posts.routes.js";
 import cookieParser from "cookie-parser";
 import helmet from "helmet";
 
@@ -17,6 +18,7 @@ app.use(
 );
 
 app.use("/api", AuthRoutes);
+app.use("/api/posts", PostsRoutes);
 
 app.listen(process.env.PORT, () => {
   console.log(`Server is running on port ${process.env.PORT}`);
